@@ -1,5 +1,18 @@
 #include <Arduino.h>
 
+
+uint32_t gcd(uint32_t a, uint32_t b);
+int32_t reduce_mod(int32_t x, uint32_t m);
+uint32_t find_d(uint32_t e, uint32_t phi);
+bool checkprime(uint32_t n);
+uint32_t randnum(int bits);
+uint32_t randprime(int bits);
+bool wait_on_serial3(uint8_t nbytes, long timeout );
+void uint32_to_serial3(uint32_t num);
+uint32_t uint32_from_serial3();
+
+
+
 uint32_t gcd(uint32_t a, uint32_t b) {
 	while(b > 0) {
 		a = a%b;
