@@ -66,7 +66,7 @@ bool checkprime(uint32_t n) {
 uint32_t randnum(int bits) {
 	uint32_t result = 0;
 	for (int i = 0; i < bits; i++) {
-		result = result | (((uint32_t)analogRead(A0) & 1) << i);
+		result |= (((uint32_t)analogRead(A1) & 1) << i);
 		delay(5);
 	}
 	return result;
@@ -74,7 +74,7 @@ uint32_t randnum(int bits) {
 
 uint32_t randprime(int bits) {
 	uint32_t result = randnum(bits);
-	result = result + pow(2,bits);
+	result = result + pow(2,bits); // add 2^bits
 	while(checkprime(result) != true) {
 		result++;
 	}
@@ -82,11 +82,11 @@ uint32_t randprime(int bits) {
 }
 
 bool wait_on_serial3(uint8_t nbytes, long timeout ) {
-	unsigned  long  deadline = millis () + timeout;// wraparound  not a problem
-	while (Serial3.available ()<nbytes  && (timeout <0 ||  millis ()<deadline)){
+	unsigned long deadline = millis() + timeout;// wraparound  not a problem
+	while (Serial3.available() < nbytes && (timeout < 0 ||  millis() < deadline)){
 		delay (1); // be nice , no busy  loop
 	}
-	return  Serial3.available () >=nbytes;
+	return  Serial3.available() >= nbytes;
 }
 
 /* 
@@ -99,7 +99,7 @@ bool wait_on_serial3(uint8_t nbytes, long timeout ) {
         None
 */
 
-void uint32_to_serial3(uint32_t  num) {
+void uint32_to_serial3(uint32_t num) {
 	Serial3.write((char) (num  >> 0));
 	Serial3.write((char) (num  >> 8));
 	Serial3.write((char) (num  >> 16));
@@ -187,6 +187,40 @@ uint32_t powmod(uint32_t x, uint32_t pow, uint32_t m) {
 }
 
 
+
+/* 
+    Description: Run the main function for either Server or Clients depends on numbers and keys
+
+    Arguments:
+        d(uint32_t), n(uint32_t), e(uint32_t), m(uint32_t): all the keys and number configured in main loop
+
+    Returns:
+        None.
+*/
+
+void run(uint32_t d, uint32_t n, uint32_t e, uint32_t m) {
+	if (Serial.available()) { // if there is input from terminal
+		uint32_t message = Serial.read();
+		if (message == '\r') { // if it is carriage return
+			Serial.write(message); // output back to terminal
+			Serial.write('\n');	// with newline
+			uint32_t encryptnewline = powmod('\n', e, m); // run the encryption for newline
+			uint32_t encrypt = powmod(message, e, m); // run the encryption for actual message
+			uint32_to_serial3(encrypt); // push the message via serial3
+			uint32_to_serial3(encryptnewline);
+		}
+		else { // otherwise only encrypt the message
+			Serial.print(char(message)); 
+			uint32_t encrypt = powmod(message, e, m); 
+			uint32_to_serial3(encrypt);
+		}
+	}
+	if (Serial3.available() >= 4) { // if there is upcoming stream from serial3, waiting for 4 bytes
+		uint32_t message = uint32_from_serial3();
+		uint32_t decrypt = powmod(message, d, n); // decrypt the message
+		Serial.write(decrypt); // output to terminal
+	}
+}
 
 void setup() {
 	init();
