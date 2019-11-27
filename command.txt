@@ -1,0 +1,23 @@
+First, you have to clone the repository by this command:
+
+git clone https://github.com/minh7a6/ass2p2.git
+
+In order to update latest commit, use:
+
+git pull
+
+To push a new changes or files, use:
+
+git status
+
+git add .
+
+git commit -a
+
+Then type the description of the new commit
+
+then use:
+
+git push 
+
+Done :))
