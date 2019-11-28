@@ -10,7 +10,9 @@ uint32_t randprime(int bits);
 bool wait_on_serial3(uint8_t nbytes, long timeout );
 void uint32_to_serial3(uint32_t num);
 uint32_t uint32_from_serial3();
-
+void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cmod);
+void handshake_client(uint32_t ckey, uint32_t cmod, uint32_t &skey, uint32_t &smod);
+void run(uint32_t d, uint32_t n, uint32_t e, uint32_t m);
 
 
 uint32_t gcd(uint32_t a, uint32_t b) {
@@ -210,6 +212,68 @@ uint32_t powmod(uint32_t x, uint32_t pow, uint32_t m) {
     Returns:
         None.
 */
+void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cmod) {
+	bool stat = true;
+	Serial.println("waiting for keys");
+	while(stat) {
+		if(wait_on_serial3(9,1000)){
+			if(Serial3.read() == 'C') {
+				ckey = uint32_from_serial3();
+				cmod = uint32_from_serial3();
+				Serial3.write('A');
+				uint32_to_serial3(skey);
+				uint32_to_serial3(smod);
+				if(wait_on_serial3(1,1000)){
+					while(Serial3.read() != 'A') {
+						if(wait_on_serial3(8,1000)) {
+							ckey = uint32_from_serial3();
+							cmod = uint32_from_serial3();
+						}
+						else {
+							//uint32_t ckey, cmod;
+							handshake_server(skey, smod, ckey, cmod);
+						}
+					}
+					stat = false;					
+				}
+				else {
+					//uint32_t ckey, cmod;
+					handshake_server(skey, smod, ckey, cmod);
+				}
+			}
+		}
+	}
+	Serial.print("ckey: ");
+	Serial.println(ckey);
+	Serial.print("cmod: ");
+	Serial.println(cmod);
+}
+
+void handshake_client(uint32_t ckey, uint32_t cmod, uint32_t &skey, uint32_t &smod) {
+	Serial.println("waiting for keys");
+	bool stat = true;
+	while(stat) {
+		Serial3.write('C');
+		uint32_to_serial3(ckey);
+		uint32_to_serial3(cmod);
+		if(wait_on_serial3(9,1000)) {
+			uint32_t ack = Serial3.read();
+			if (ack == 'A') {
+				skey = uint32_from_serial3();
+				smod = uint32_from_serial3();
+				Serial.print("skey: ");
+				Serial.println(skey);
+				Serial.print("smod: ");
+				Serial.println(smod);
+				Serial3.write('A');
+				stat = false;
+			}
+		}
+		else {
+			handshake_client(ckey, cmod, skey, smod);
+		}
+	}
+}
 
 void run(uint32_t d, uint32_t n, uint32_t e, uint32_t m) {
 	if (Serial.available()) { // if there is input from terminal
@@ -239,14 +303,55 @@ void setup() {
 	init();
 	Serial.begin(9600);
 	Serial3.begin(9600);
-	pinMode(13, INPUT);
+	pinMode(13, INPUT_PULLUP);
 }
 
 int main() {
 	setup();
 	bool is_server = digitalRead(13);
-	uint32_t n, e, d;
-	generate_key(n, e, d);
+	uint32_t mod, publickey, privatekey;
+	generate_key(mod, publickey, privatekey);
+	if (is_server) {
+		Serial.println("Welcome to Arduino Chat!");
+		Serial.println("Server");
+		Serial.println("generated key:");
+		Serial.print("mod: ");
+		Serial.println(mod);
+		Serial.print("publickey: ");
+		Serial.println(publickey);
+		Serial.print("privatekey: ");
+		Serial.println(privatekey);
+		uint32_t ckey,cmod;
+		handshake_server(publickey,mod,ckey,cmod);
+		uint32_t d = privatekey;
+		uint32_t n = mod;
+		uint32_t e = ckey;
+		uint32_t m = cmod;	
+		while(1) {
+			run(d,n,e,m);
+		}
+	}
+	else {
+		Serial.println("Welcome to Arduino Chat!");
+		Serial.println("Client");
+		Serial.println("generated key:");
+		Serial.print("mod: ");
+		Serial.println(mod);
+		Serial.print("publickey: ");
+		Serial.println(publickey);
+		Serial.print("privatekey: ");
+		Serial.println(privatekey);
+		uint32_t skey,smod;
+		handshake_client(publickey, mod, skey, smod);
+		uint32_t d = privatekey;
+		uint32_t n = mod;
+		uint32_t e = skey;
+		uint32_t m = smod;	
+		while(1) {
+			run(d,n,e,m);
+		}
+	}
 	Serial.flush();
+	Serial3.flush();
 	return 0;
 }
