@@ -214,8 +214,8 @@ uint32_t powmod(uint32_t x, uint32_t pow, uint32_t m) {
 */
 void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cmod) {
 	bool stat = true;
-	Serial.println("waiting for keys");
 	while(stat) {
+		Serial.println("waiting for keys");
 		if(wait_on_serial3(9,1000)){
 			if(Serial3.read() == 'C') {
 				ckey = uint32_from_serial3();
@@ -237,14 +237,7 @@ void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cm
 							handshake_server(skey, smod, ckey, cmod);
 						}
 				}
-				else {
-					//uint32_t ckey, cmod;
-					handshake_server(skey, smod, ckey, cmod);
-				}
 			}
-		}
-		else {
-			handshake_server(skey, smod, ckey, cmod);
 		}
 	}
 	Serial.print("ckey: ");
@@ -254,9 +247,9 @@ void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cm
 }
 
 void handshake_client(uint32_t ckey, uint32_t cmod, uint32_t &skey, uint32_t &smod) {
-	Serial.println("requesting for keys");
 	bool stat = true;
 	while(stat) {
+		Serial.println("requesting for keys");
 		Serial3.write('C');
 		uint32_to_serial3(ckey);
 		uint32_to_serial3(cmod);
@@ -265,16 +258,13 @@ void handshake_client(uint32_t ckey, uint32_t cmod, uint32_t &skey, uint32_t &sm
 			if (ack == 'A') {
 				skey = uint32_from_serial3();
 				smod = uint32_from_serial3();
+				Serial3.write('A');
 				Serial.print("skey: ");
 				Serial.println(skey);
 				Serial.print("smod: ");
 				Serial.println(smod);
-				Serial3.write('A');
 				stat = false;
 			}
-		}
-		else {
-			handshake_client(ckey, cmod, skey, smod);
 		}
 	}
 }
@@ -330,7 +320,9 @@ int main() {
 		uint32_t d = privatekey;
 		uint32_t n = mod;
 		uint32_t e = ckey;
-		uint32_t m = cmod;	
+		uint32_t m = cmod;
+		delay(50);
+		Serial.println("Data Exchange Ready!");
 		while(1) {
 			run(d,n,e,m);
 		}
@@ -350,7 +342,9 @@ int main() {
 		uint32_t d = privatekey;
 		uint32_t n = mod;
 		uint32_t e = skey;
-		uint32_t m = smod;	
+		uint32_t m = smod;
+		delay(50);
+		Serial.println("Data Exchange Ready!");	
 		while(1) {
 			run(d,n,e,m);
 		}
