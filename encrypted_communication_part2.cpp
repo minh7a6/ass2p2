@@ -89,14 +89,14 @@ uint32_t randnum(int bits) {
 
 uint32_t randprime(int bits) {
 	uint32_t result = randnum(bits);
-	result = result + pow(2,bits); // add 2^bits
+	result = result + (1ul << bits); // add 2^bits
 	while(checkprime(result) != true) {
 		result++;
 	}
 	return result;
 }
 
-bool wait_on_serial3(uint8_t nbytes, long timeout ) {
+bool wait_on_serial3(uint8_t nbytes, long timeout) {
 	unsigned long deadline = millis() + timeout;// wraparound  not a problem
 	while (Serial3.available() < nbytes && (timeout < 0 ||  millis() < deadline)){
 		delay (1); // be nice , no busy  loop
@@ -224,7 +224,10 @@ void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cm
 				uint32_to_serial3(skey);
 				uint32_to_serial3(smod);
 				if(wait_on_serial3(1,1000)){
-					while(Serial3.read() != 'A') {
+					if(Serial3.read() == 'A'){
+						stat = false;
+					}
+					else if(Serial3.read() == 'C')
 						if(wait_on_serial3(8,1000)) {
 							ckey = uint32_from_serial3();
 							cmod = uint32_from_serial3();
@@ -233,14 +236,15 @@ void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cm
 							//uint32_t ckey, cmod;
 							handshake_server(skey, smod, ckey, cmod);
 						}
-					}
-					stat = false;					
 				}
 				else {
 					//uint32_t ckey, cmod;
 					handshake_server(skey, smod, ckey, cmod);
 				}
 			}
+		}
+		else {
+			handshake_server(skey, smod, ckey, cmod);
 		}
 	}
 	Serial.print("ckey: ");
@@ -250,7 +254,7 @@ void handshake_server(uint32_t skey, uint32_t smod, uint32_t &ckey, uint32_t &cm
 }
 
 void handshake_client(uint32_t ckey, uint32_t cmod, uint32_t &skey, uint32_t &smod) {
-	Serial.println("waiting for keys");
+	Serial.println("requesting for keys");
 	bool stat = true;
 	while(stat) {
 		Serial3.write('C');
